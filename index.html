@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meltstone — Site builder</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></symbol>
+      <symbol id="i-italic" viewBox="0 0 24 24"><path d="M14 5h-4M14 19h-4M14 5l-4 14"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6"/><circle cx="4.5" cy="12" r=".6"/><circle cx="4.5" cy="18" r=".6"/></symbol>
+      <symbol id="i-quote" viewBox="0 0 24 24"><path d="M5 7h5v5H7l-2 4M14 7h5v5h-3l-2 4"/></symbol>
+      <symbol id="i-table" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M4 15h16M10 4v16"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6 19.5"/></symbol>
+      <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></symbol>
+      <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.5c2 0 3.3 1 4.3 2.6l2.4 4.8c1 1.6 2.3 2.6 4.3 2.6H21M18 14l3 3-3 3M3 17h3.5c1.3 0 2.3-.4 3.1-1.2M13.4 8.2c.8-.8 1.8-1.2 3.1-1.2H21M18 4l3 3-3 3"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="topbar">
+    <div class="logo"><span class="logo-mark"></span>Meltstone</div>
+    <span id="status" class="status"><span class="dot"></span><span id="status-text">Up to date</span></span>
+    <div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Preview width">
+      <button id="vw-desktop" class="icon on" title="Desktop preview" aria-label="Desktop preview"><svg><use href="#i-desktop"/></svg></button>
+      <button id="vw-mobile" class="icon" title="Mobile preview" aria-label="Mobile preview"><svg><use href="#i-phone"/></svg></button>
+    </div>
+    <button id="style-toggle" class="ghost" title="Colors, fonts, shapes and layout" aria-expanded="false"><svg><use href="#i-sliders"/></svg>Style</button>
+    <button id="remix" class="ghost" title="Try a different style for the same content"><svg><use href="#i-shuffle"/></svg>Remix</button>
+    <div class="menu-anchor">
+      <button id="export" class="ghost" data-menu="export-menu" title="Download the site"><svg><use href="#i-download"/></svg>Export</button>
+      <div class="menu export-menu" id="export-menu" hidden>
+        <button data-export="zip"><span><b>Website folder (.zip)</b><small>index.html with images and fonts folders. Ready to upload anywhere.</small></span></button>
+        <button data-export="html"><span><b>Single HTML file</b><small>Images and fonts embedded. Easy to share as one file.</small></span></button>
+      </div>
+    </div>
+    <div class="menu-anchor">
+      <button class="icon ghost" data-menu="more-menu" title="More" aria-label="More"><svg><use href="#i-more"/></svg></button>
+      <div class="menu" id="more-menu" hidden>
+        <button data-action="live">Live preview<span id="live-check" class="check"></span></button>
+        <hr>
+        <button data-action="guide">Formatting guide</button>
+        <button data-action="reset-style">Reset to original style</button>
+        <hr>
+        <button data-action="sample">Load example content</button>
+      </div>
+    </div>
+    <button id="update" class="primary" title="Update preview (⌘/Ctrl + Enter)">Update preview</button>
+  </header>
+
+  <main class="panes">
+    <section class="editor-pane">
+      <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <button data-cmd="h1" class="txt" title="Site title (H1)">H1</button>
+        <button data-cmd="h2" class="txt" title="New section (H2)">H2</button>
+        <button data-cmd="h3" class="txt" title="Sub-heading / card (H3)">H3</button>
+        <span class="sep"></span>
+        <button data-cmd="bold" title="Bold (⌘B)" aria-label="Bold"><svg><use href="#i-bold"/></svg></button>
+        <button data-cmd="italic" title="Italic (⌘I)" aria-label="Italic"><svg><use href="#i-italic"/></svg></button>
+        <button data-cmd="list" title="List" aria-label="List"><svg><use href="#i-list"/></svg></button>
+        <button data-cmd="quote" title="Quote / testimonial" aria-label="Quote"><svg><use href="#i-quote"/></svg></button>
+        <span class="sep"></span>
+        <button data-cmd="table" title="Table" aria-label="Table"><svg><use href="#i-table"/></svg></button>
+        <button data-cmd="link" title="Link or button (⌘K)" aria-label="Link"><svg><use href="#i-link"/></svg></button>
+        <div class="menu-anchor">
+          <button data-menu="image-menu" title="Add image" aria-label="Add image"><svg><use href="#i-image"/></svg><svg class="chev"><use href="#i-chevron"/></svg></button>
+          <div class="menu" id="image-menu" hidden>
+            <button data-cmd="upload">Upload from computer…</button>
+            <button data-cmd="image">From a URL…</button>
+          </div>
+        </div>
+        <input id="file" type="file" accept="image/*" multiple hidden>
+      </div>
+      <div id="editor" class="editor"></div>
+    </section>
+
+    <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize editor and preview" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
+    <section class="preview-pane">
+      <div class="report">
+        <span id="style-summary" class="style-summary"></span>
+        <div class="menu-anchor right">
+          <button id="sections-btn" class="ghost small" data-menu="sections-menu"></button>
+          <div class="menu sections" id="sections-menu" hidden></div>
+        </div>
+      </div>
+      <div class="preview-body">
+        <div class="frame-wrap" id="frame-wrap">
+          <iframe id="preview" title="Website preview" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>
+        </div>
+        <aside id="style-panel" class="style-panel" aria-label="Style settings" hidden></aside>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <dialog id="guide">
+    <form method="dialog">
+      <h2>Writing your site</h2>
+      <pre id="guide-text"></pre>
+      <button class="primary">Got it</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
