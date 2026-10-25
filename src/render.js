@@ -8,31 +8,56 @@ import { chooseTheme, describe } from './themes.js';
 // For export, `urlMap` swaps image URLs (as written in the Markdown) for local paths or data URLs,
 // and `fontHref` / `fontCss` replace the Google Fonts link with a local file or inline CSS.
 // `overrides` are Style panel settings (same keys as front matter, see STYLE_OPTIONS).
-export function build(source, { remix = 0, seed, mood, overrides = {}, assets = {}, urlMap = {}, fontHref = '', fontCss = '' } = {}) {
-  const doc = parse(source);
-  const corpus = doc.sections.map(s => s.title + ' ' + allBlocks(s).map(b => b.text || '').join(' ')).join(' ');
-  const theme = chooseTheme(doc, { remix, seed, mood, overrides }, corpus);
-  const ctx = { assets, urlMap, fontHref, fontCss, theme, splitCount: 0 };
+export function build(source, options = {}) {
+  const { html, report } = buildSite({ pages: [{ slug: '', name: '', source }] }, options);
+  return { html, report };
+}
 
-  const used = new Set();
-  const sections = doc.sections.map((s, i) => {
-    const kind = classify(s);
-    let id = slug(plainText(s.title)) || 'section';
-    while (used.has(id)) id += '-' + i;
-    used.add(id);
-    return { ...s, kind, id, index: i };
+// A site is a list of pages ({ slug, name, source }); the first is Home (slug ''). All pages share one
+// theme. Returns every page's HTML plus `html`/`report` for the `current` page. `standalone` builds
+// `current` as a lone page that keeps the site's look but has no page nav or links (single-file export). Local paths in
+// `urlMap`/`fontHref` are written relative to the site root; pages in a subfolder get a "../" prefix.
+export function buildSite({ pages }, { current = 0, standalone = false, remix = 0, seed, mood, overrides = {}, assets = {}, urlMap = {}, fontHref = '', fontCss = '' } = {}) {
+  const docs = pages.map(p => parse(p.source));
+  const home = docs[0];
+  const multi = pages.length > 1 && !standalone;
+  const cur = Math.min(current, pages.length - 1);
+  const corpus = docs.map(d => d.sections.map(s => s.title + ' ' + allBlocks(s).map(b => b.text || '').join(' ')).join(' ')).join(' ');
+  const theme = chooseTheme(home, { remix, seed, mood, overrides }, corpus);
+
+  const prepared = docs.map(doc => {
+    const used = new Set();
+    const sections = doc.sections.map((s, i) => {
+      const kind = classify(s);
+      let id = slug(plainText(s.title)) || 'section';
+      while (used.has(id)) id += '-' + i;
+      used.add(id);
+      return { ...s, kind, id, index: i };
+    });
+    return { doc, sections };
   });
+  const entries = multi ? pages.map((p, i) => ({ slug: p.slug, key: p.slug || 'home', label: p.name || (i === 0 ? 'Home' : docs[i].title) })) : null;
 
   // Rough width the nav needs (≈ 8.5px per character plus gaps), so links hide before they wrap.
-  const navItems = sections.filter(s => s.kind !== 'contact' && plainText(s.title).length <= 22).slice(0, 5);
-  const navChars = navItems.reduce((n, s) => n + plainText(s.title).length, 0);
-  theme.navBreak = Math.max(820, Math.round(plainText(doc.title).length * 11 + navChars * 8.5 + navItems.length * 24 + 260));
+  const navLabels = multi ? entries.map(e => e.label)
+    : prepared[cur].sections.filter(s => s.kind !== 'contact' && plainText(s.title).length <= 22).slice(0, 5).map(s => plainText(s.title));
+  const navChars = navLabels.reduce((n, l) => n + l.length, 0);
+  theme.navBreak = Math.max(820, Math.round(plainText(home.title).length * 11 + navChars * 8.5 + navLabels.length * 24 + 260));
 
-  const html = page(doc, sections, theme, ctx);
+  const results = prepared.map(({ doc, sections }, i) => {
+    const ctx = {
+      assets, urlMap, fontHref, fontCss, theme, splitCount: 0,
+      prefix: multi && pages[i].slug ? '../' : '', pages: entries, current: pages[i].slug, siteTitle: home.title,
+    };
+    return { slug: pages[i].slug, html: page(doc, sections, theme, ctx) };
+  });
+
+  const { doc, sections } = prepared[cur];
   return {
-    html,
+    pages: results,
+    html: results[cur].html,
     report: {
-      title: doc.title,
+      title: home.title,
       mood: theme.mood,
       detectedMood: theme.detectedMood,
       fontsUrl: fontsUrl(theme),
@@ -41,7 +66,7 @@ export function build(source, { remix = 0, seed, mood, overrides = {}, assets = 
       hero: theme.hero,
       style: describe(theme),
       autoStyle: theme.auto,
-      sections: sections.map(s => ({ id: s.id, title: plainText(s.title), kind: KIND_LABELS[s.kind] || s.kind })),
+      sections: sections.map(s => ({ title: plainText(s.title), kind: KIND_LABELS[s.kind] || s.kind })),
     },
   };
 }
@@ -56,9 +81,30 @@ function unesc(s) {
   return String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 }
 
+// Local files are written relative to the site root; pages in a subfolder reach them through ctx.prefix.
+function local(path, ctx) {
+  return /^(data:|https?:|\/)/i.test(path) ? path : ctx.prefix + path;
+}
+
+// Path from the current page to another page of the site, by key ('home' or a slug).
+function pageHref(ctx, key) {
+  const to = ctx.pages?.find(p => p.key === key);
+  if (!to) return key === 'home' ? '#top' : '#';
+  if (to.slug === ctx.current) return './';
+  return (ctx.current ? '../' : '') + (to.slug ? to.slug + '/' : '');
+}
+
+// Links to other pages are written [text](page:slug); data-page lets the preview switch pages.
+function pageAttr(href) {
+  const m = unesc(href).trim().match(/^page:([\w-]+)$/i);
+  return m ? ` data-page="${m[1].toLowerCase()}"` : '';
+}
+
 function url(raw, ctx) {
   const u = unesc(raw).trim();
-  if (Object.hasOwn(ctx.urlMap, u)) return esc(ctx.urlMap[u]);
+  const pm = u.match(/^page:([\w-]+)$/i);
+  if (pm) return esc(pageHref(ctx, pm[1].toLowerCase()));
+  if (Object.hasOwn(ctx.urlMap, u)) return esc(local(ctx.urlMap[u], ctx));
   if (u.startsWith('asset:')) return esc(ctx.assets[u.slice(6)] || '');
   if (/^(https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/i.test(u)) return esc(u);
   if (/^data:image\//i.test(u)) return esc(u);
@@ -77,7 +123,7 @@ function inline(text, ctx) {
   s = s.replace(/!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+&quot;.*?&quot;)?\s*\)/g,
     (_, alt, src) => `<img src="${url(src, ctx)}" alt="${alt}" loading="lazy">`);
   s = s.replace(/\[([^\]]+)\]\(\s*([^)\s]+)(?:\s+&quot;.*?&quot;)?\s*\)/g,
-    (_, t, href) => `<a href="${url(href, ctx)}"${external(href)}>${t}</a>`);
+    (_, t, href) => `<a href="${url(href, ctx)}"${external(href)}${pageAttr(href)}>${t}</a>`);
   s = s.replace(/(^|[\s(])(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, (_, pre, u) => `${pre}<a href="${url(u, ctx)}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//, '')}</a>`);
   s = s.replace(/(^|[\s(])([\w.+-]+@[\w-]+\.[\w.-]*\w)/g, '$1<a href="mailto:$2">$2</a>');
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/__(.+?)__/g, '<strong>$1</strong>');
@@ -100,7 +146,7 @@ function figure(img, ctx, cls = '') {
 
 function buttons(links, ctx, primaryFirst = true) {
   return `<div class="btns">${links.map((l, i) =>
-    `<a class="btn ${i === 0 && primaryFirst ? 'btn-primary' : 'btn-ghost'}" href="${url(esc(l.href), ctx)}"${external(esc(l.href))}>${inline(l.text, ctx)}</a>`).join('')}</div>`;
+    `<a class="btn ${i === 0 && primaryFirst ? 'btn-primary' : 'btn-ghost'}" href="${url(esc(l.href), ctx)}"${external(esc(l.href))}${pageAttr(esc(l.href))}>${inline(l.text, ctx)}</a>`).join('')}</div>`;
 }
 
 function blocks(list, ctx, opts = {}) {
@@ -320,12 +366,25 @@ function hero(doc, theme, ctx) {
 
 function nav(doc, sections, theme, ctx) {
   const contact = sections.find(s => s.kind === 'contact');
-  const items = sections.filter(s => s !== contact && plainText(s.title).length <= 22).slice(0, 5);
-  const links = items.map(s => `<a href="#${s.id}">${esc(plainText(s.title))}</a>`).join('');
   const cta = contact ? `<a class="btn btn-primary btn-sm" href="#${contact.id}">${esc(plainText(contact.title))}</a>` : '';
-  return `<nav class="nav nav-${theme.nav}"><div class="wrap nav-inner">
-    <a class="brand" href="#top">${esc(plainText(doc.title))}</a>
+  const brandText = esc(plainText(ctx.siteTitle));
+  if (!ctx.pages) {
+    const items = sections.filter(s => s !== contact && plainText(s.title).length <= 22).slice(0, 5);
+    const links = items.map(s => `<a href="#${s.id}">${esc(plainText(s.title))}</a>`).join('');
+    return `<nav class="nav nav-${theme.nav}"><div class="wrap nav-inner">
+    <a class="brand" href="#top">${brandText}</a>
     <div class="nav-links">${links}</div>${cta}</div></nav>`;
+  }
+  // Several pages: pages in the bar (a second strip on narrow screens), this page's sections underneath.
+  const pageLinks = ctx.pages.map(p =>
+    `<a href="${pageHref(ctx, p.key)}" data-page="${p.key}"${p.slug === ctx.current ? ' aria-current="page"' : ''}>${esc(p.label)}</a>`).join('');
+  const items = sections.filter(s => s !== contact && plainText(s.title).length <= 22).slice(0, 8);
+  const subnav = items.length >= 2
+    ? `<div class="subnav subnav-sections"><div class="wrap">${items.map(s => `<a href="#${s.id}">${esc(plainText(s.title))}</a>`).join('')}</div></div>` : '';
+  return `<nav class="nav nav-${theme.nav}"><div class="wrap nav-inner">
+    <a class="brand" href="${pageHref(ctx, 'home')}" data-page="home">${brandText}</a>
+    <div class="nav-links">${pageLinks}</div>${cta}</div>
+    <div class="subnav subnav-pages"><div class="wrap">${pageLinks}</div></div>${subnav}</nav>`;
 }
 
 function page(doc, sections, theme, ctx) {
@@ -335,13 +394,17 @@ function page(doc, sections, theme, ctx) {
     return `<section id="${s.id}" class="sec sec-${s.kind}${alt}"><div class="wrap">${render(s, ctx)}</div></section>`;
   }).join('\n');
 
-  const footerLinks = sections.slice(0, 6).map(s => `<a href="#${s.id}">${esc(plainText(s.title))}</a>`).join('');
+  const footerLinks = ctx.pages
+    ? ctx.pages.map(p => `<a href="${pageHref(ctx, p.key)}" data-page="${p.key}">${esc(p.label)}</a>`).join('')
+    : sections.slice(0, 6).map(s => `<a href="#${s.id}">${esc(plainText(s.title))}</a>`).join('');
+  const siteName = esc(plainText(ctx.siteTitle));
+  const pageTitle = ctx.pages && ctx.current ? `${esc(plainText(doc.title))} · ${siteName}` : siteName;
   const description = plainText(doc.tagline).slice(0, 160);
 
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(plainText(doc.title))}</title>
+<title>${ctx.pages && ctx.current ? pageTitle : esc(plainText(doc.title))}</title>
 ${description ? `<meta name="description" content="${esc(description)}">` : ''}
 ${fontTags(theme, ctx)}
 <style>${css(theme)}</style>
@@ -350,9 +413,9 @@ ${nav(doc, sections, theme, ctx)}
 ${hero(doc, theme, ctx)}
 <main>${body}</main>
 <footer class="footer"><div class="wrap footer-inner">
-  <span class="brand">${esc(plainText(doc.title))}</span>
+  <span class="brand">${siteName}</span>
   <div class="footer-links">${footerLinks}</div>
-  <small>© ${new Date().getFullYear()} ${esc(plainText(doc.title))}</small>
+  <small>© ${new Date().getFullYear()} ${siteName}</small>
 </div></footer>
 </body></html>`;
 }
@@ -363,7 +426,7 @@ function fontsUrl(theme) {
 
 function fontTags(theme, ctx) {
   if (ctx.fontCss) return `<style>${ctx.fontCss}</style>`;
-  if (ctx.fontHref) return `<link rel="stylesheet" href="${esc(ctx.fontHref)}">`;
+  if (ctx.fontHref) return `<link rel="stylesheet" href="${esc(local(ctx.fontHref, ctx))}">`;
   return `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${fontsUrl(theme)}">`;
 }
@@ -437,6 +500,13 @@ cite::before{content:'— '}
 .nav-links a{color:var(--muted);text-decoration:none;font-size:.925rem;font-weight:500;white-space:nowrap}
 .nav-links a:hover{color:var(--text)}
 .nav-links:empty+.btn,.nav-links:empty{margin-left:auto}
+.nav-links a[aria-current=page],.subnav a[aria-current=page]{color:var(--text)}
+.subnav{border-top:1px solid var(--border)}
+.nav-pill .subnav{border:0;padding-top:4px}
+.subnav .wrap{display:flex;gap:1.25rem;overflow-x:auto;padding:.5rem 0;scrollbar-width:none}
+.subnav a{color:var(--muted);font-size:.85rem;font-weight:500;white-space:nowrap;text-decoration:none}
+.subnav a:hover{color:var(--text)}
+.subnav-pages{display:none}
 
 /* hero */
 .hero{padding:calc(clamp(4rem,10vw,8rem)*var(--space)) 0 calc(clamp(3rem,8vw,6rem)*var(--space))}
@@ -586,6 +656,7 @@ ${p.onAccent === '#1d1a12' ? '.timeline time,.eyebrow,.num{color:var(--link)}' :
 }
 @media (max-width:${navBreak}px){
   .nav-links{display:none}
+  .subnav-pages{display:block}
   .nav-inner>.btn{margin-left:auto}
 }
 @media (max-width:560px){

@@ -56,7 +56,7 @@ function sectionAnchors(state) {
   return ids;
 }
 
-export function mdPopover({ resolveAsset, pickImage }) {
+export function mdPopover({ resolveAsset, pickImage, getPages = () => [] }) {
   return ViewPlugin.fromClass(class {
     constructor(view) {
       this.view = view;
@@ -151,11 +151,14 @@ export function mdPopover({ resolveAsset, pickImage }) {
         return;
       }
       if (t.kind === 'link') {
-        const anchors = sectionAnchors(this.view.state);
+        const anchors = [
+          ...getPages().map(p => ({ id: 'page:' + (p.slug || 'home'), title: 'Page: ' + p.name })),
+          ...sectionAnchors(this.view.state),
+        ];
         this.dom.className = 'md-pop md-pop-form';
         this.dom.innerHTML = `
           <label>Text<input name="text" value="${esc(t.text)}" autocomplete="off"></label>
-          <label>Link<input name="url" value="${esc(t.url)}" placeholder="https://…, mailto:… or #section" list="md-pop-anchors" autocomplete="off"></label>
+          <label>Link<input name="url" value="${esc(t.url)}" placeholder="https://…, page:name or #section" list="md-pop-anchors" autocomplete="off"></label>
           <datalist id="md-pop-anchors">${anchors.map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join('')}</datalist>
           <div class="md-pop-row">
             <button type="button" class="danger" data-act="unlink">Remove link</button>

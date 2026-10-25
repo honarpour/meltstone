@@ -4,7 +4,7 @@ A neighbourhood bakery baking sourdough, pastries and slow coffee since 2014.
 
 ![Fresh loaves on the counter](https://picsum.photos/seed/hearth-hero/1400/1000)
 
-[Order for pickup](https://example.com/order) [See the menu](#menu)
+[Order for pickup](https://example.com/order) [See the menu](page:menu)
 
 ## Our story
 
@@ -99,6 +99,56 @@ hello@hearthandcrumb.com
 [Get directions](https://maps.google.com) [Instagram](https://instagram.com)
 `;
 
+const MENU = `# The menu
+
+What's on the counter, baked fresh every morning.
+
+## Bread
+
+| Loaf | Notes | Price |
+| --- | --- | ---: |
+| Country sourdough | 36-hour ferment, blistered crust | $9 |
+| Rye & caraway | Dense, a little sour | $8 |
+| Seeded batard | Sunflower, flax and sesame | $9 |
+
+## Pastry
+
+| Item | Notes | Price |
+| --- | --- | ---: |
+| Croissant | Cultured butter, 27 layers | $4 |
+| Pain au chocolat | Dark chocolate batons | $4.5 |
+| Seasonal danish | Ask what's in the oven | $5 |
+
+## Order
+
+[Order for pickup](https://example.com/order) [Back home](page:home)
+`;
+
+const ABOUT = `# About us
+
+Gus the starter, and the people who feed him.
+
+![Baker shaping dough](https://picsum.photos/seed/hearth-2/900/700)
+
+## How we bake
+
+Every loaf is shaped by hand from organic, stone-milled flour. Nothing is rushed, and nothing is added that you can't pronounce.
+
+## Visit us
+
+12 Mill Lane, Riverside
+hello@hearthandcrumb.com
+`;
+
+// What a fresh start (and "Load example") creates: a three-page site.
+export const SAMPLE_SITE = {
+  pages: [
+    { name: 'Home', source: SAMPLE },
+    { name: 'Menu', source: MENU },
+    { name: 'About', source: ABOUT },
+  ],
+};
+
 export const CHEATSHEET = `How your text becomes a website
 
 # Title           → site name (first line)
@@ -120,6 +170,9 @@ Each section's layout is picked from its content:
 • "Contact" or an email       → contact card
 • only links                  → call-to-action band
 • | pipe | tables |          → styled table (any section)
+
+Pages: add pages in the sidebar. Link to one with [Menu](page:menu)
+(page:home for the first page). Their names become the site's menu.
 
 Force a layout: ## My section {gallery}
 Layouts: prose split gallery cards listCards pricing faq stats timeline testimonials contact cta

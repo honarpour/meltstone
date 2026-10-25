@@ -58,14 +58,21 @@ export function previewRuntime() {
 
   addEventListener('message', e => {
     if (e.source !== parent || !e.data) return;
-    if (typeof e.data.meltstoneHtml === 'string') apply(e.data.meltstoneHtml);
-    if (typeof e.data.meltstoneScroll === 'string') {
-      document.getElementById(e.data.meltstoneScroll)?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof e.data.meltstoneHtml === 'string') {
+      apply(e.data.meltstoneHtml);
+      if (e.data.reset) scrollTo(0, 0);
     }
   });
 
-  // The iframe is sandboxed without same-origin, so in-page anchors are handled here.
+  // The iframe is sandboxed without same-origin, so in-page anchors are handled here, and links
+  // to other pages are handed to the app, which switches the editor to that page.
   document.addEventListener('click', e => {
+    const page = e.target.closest('a[data-page]');
+    if (page) {
+      e.preventDefault();
+      parent.postMessage({ meltstonePage: page.dataset.page }, '*');
+      return;
+    }
     const a = e.target.closest('a[href^="#"]');
     if (!a) return;
     e.preventDefault();

@@ -2,13 +2,14 @@
 
 **Turn a Markdown document into a designed, responsive website, with no AI and no build step.**
 
-![Meltstone: a Markdown editor on the left, the generated website on the right](docs/screenshot.png)
+![Meltstone: a sidebar of pages, a Markdown editor, and the generated website beside it](docs/screenshot.png)
 
 Write your content in a rich Markdown editor on the left and watch it become a website on the right. Meltstone reads the _shape_ of your content (a list of years, a group of photos, questions under a heading) and chooses a fitting layout for each section. The look is chosen from hand-picked palettes, font pairings and layouts that are known to work together. The same text always produces the same site, and you can export it as a folder or a single HTML file that works offline.
 
 ## Features
 
 - **Rich Markdown editor.** It works like Obsidian's live preview: headings, emphasis, links, quotes and image thumbnails render as you type, and the raw Markdown shows only on the line you're editing.
+- **Several sites, several pages.** A sidebar holds your sites and the pages of each one. Pages share a look, link to each other with `[Menu](page:menu)`, and export as one folder.
 - **Tables.** GitHub-style pipe tables (with `:---:` alignment) render as responsive, themed tables inside any section. In the editor they're edited in place, cell by cell (Tab and Enter to move, **⊞** in the toolbar to insert one).
 - **Layouts from content.** Galleries, cards, pricing tables, FAQs, stats, timelines, testimonials, contact cards and call-to-action bands are chosen from what each section contains.
 - **A different look for every site.** The style is seeded from the site title and nudged by keywords ("café", "API", "studio"…), so two sites rarely look alike. **Remix** tries another look.
@@ -93,6 +94,15 @@ If a guess is wrong, force a layout by adding it to the heading: `## Our work {g
 
 The full guide is also in the app under **⋯ → Formatting guide**.
 
+## Sites and pages
+
+The sidebar lists your sites (the dropdown at the top) and the pages of the current site. **+** adds a page, **⋯** renames, reorders or deletes it, and you can drag pages to reorder them. The first page is **Home** (`index.html`) and always stays first. Every other page lives at `/<name>/`.
+
+- All pages of a site share one style, one set of uploaded images and one navigation: the generated nav lists the pages, with the current page's sections underneath. A single-page site is generated exactly as before.
+- Link to another page with `[Menu](page:menu)` (the link popover lists them), and to Home with `[Back](page:home)`. Renaming a page updates these links in the site's other pages.
+- The site's name, used for the brand and as the style seed, is the title (`# …`) of its Home page.
+- **⋯ → Load example content** adds the example as a new three-page site instead of replacing yours.
+
 ## Styling
 
 Open **Style** in the top bar to adjust the look. Every control starts on **Auto** and shows what was generated; picking a value pins it, and the **Auto** link next to a control unpins it. **Remix** changes everything that's still on Auto.
@@ -123,8 +133,8 @@ seed: anything # seeds the automatic choices instead of the title
 
 **Export** offers two formats:
 
-- **Website folder (.zip)** contains `index.html` plus `images/` and `fonts/`, all referenced by relative paths. Upload the folder to any static host (GitHub Pages, Netlify, S3, a plain web server).
-- **Single HTML file** has every image and font embedded as base64, which makes it easy to email or share.
+- **Website folder (.zip)** has `index.html` at the top level, one folder per extra page (`about/index.html`), and shared `images/` and `fonts/`, all referenced by relative paths. Upload the contents to any static host (GitHub Pages, Netlify, Cloudflare Pages, Amplify, S3, a plain web server). Browsers need to load it over HTTP(S), as any host does; opening `index.html` straight from disk won't follow the page links.
+- **Single HTML file** has every image and font embedded as base64, which makes it easy to email or share. It holds **only the page you're on**, in the site's style, without the page menu or links to other pages. Use the folder export for the whole site.
 
 Export downloads remote images and the Google Fonts files from the browser. A few image hosts don't allow this (CORS). Those images keep linking to their original URL, and the app tells you how many were affected.
 
@@ -152,7 +162,8 @@ index.html              App shell
 app.css                 App styles (the generated sites carry their own CSS)
 server.js               Zero-dependency static server for local development
 src/
-  app.js                Wires the editor, preview, style panel and export together
+  app.js                Wires the editor, sidebar, preview, style panel and export together
+  sites.js              Sites and pages, and how they're stored
   editor.js             Live-preview Markdown editor on CodeMirror 6
   parser.js             Markdown → document tree
   classify.js           Section → layout rules
@@ -199,7 +210,7 @@ console.log(build(SAMPLE).report);"
 
 ## Privacy
 
-Meltstone runs entirely in your browser. Your document, settings and uploaded images are stored in the browser's `localStorage` and never sent anywhere. The preview and the generated sites load fonts from Google Fonts, and images load from wherever you link them. An exported site with bundled assets makes no outside requests apart from the links you write.
+Meltstone runs entirely in your browser. Your sites, pages, settings and uploaded images are stored in the browser's `localStorage` and never sent anywhere. The preview and the generated sites load fonts from Google Fonts, and images load from wherever you link them. An exported site with bundled assets makes no outside requests apart from the links you write.
 
 ## Browser support
 
@@ -207,9 +218,9 @@ Recent versions of Chrome, Edge, Firefox and Safari. The generated sites use mod
 
 ## Limitations
 
-- Only the Markdown that maps to a website is supported. There are no tables, nested lists or raw HTML.
-- Uploaded images live in `localStorage`, which typically holds about 5 MB per site. Images are downscaled to 1600 px to help.
-- Single-page sites only.
+- Only the Markdown that maps to a website is supported. There are no nested lists or raw HTML.
+- Everything, including uploaded images, lives in `localStorage`, which typically holds about 5 MB per browser across all your sites. Images are downscaled to 1600 px to help, and the app warns you when storage is full.
+- The preview shows one page at a time, and pages can't be nested.
 
 ## Contributing
 

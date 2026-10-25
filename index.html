@@ -22,6 +22,7 @@
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></symbol>
       <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></symbol>
       <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+      <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M9.5 5v14"/></symbol>
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
     </defs>
   </svg>
@@ -39,8 +40,8 @@
     <div class="menu-anchor">
       <button id="export" class="ghost" data-menu="export-menu" title="Download the site"><svg><use href="#i-download"/></svg>Export</button>
       <div class="menu export-menu" id="export-menu" hidden>
-        <button data-export="zip"><span><b>Website folder (.zip)</b><small>index.html with images and fonts folders. Ready to upload anywhere.</small></span></button>
-        <button data-export="html"><span><b>Single HTML file</b><small>Images and fonts embedded. Easy to share as one file.</small></span></button>
+        <button data-export="zip"><span><b>Website folder (.zip)</b><small>index.html, one folder per page, plus images and fonts. Works on any static host.</small></span></button>
+        <button data-export="html"><span><b>Single HTML file</b><small id="export-html-note">Images and fonts embedded. Easy to share as one file.</small></span></button>
       </div>
     </div>
     <div class="menu-anchor">
@@ -57,9 +58,27 @@
     <button id="update" class="primary" title="Update preview (⌘/Ctrl + Enter)">Update preview</button>
   </header>
 
+  <div class="workspace">
+  <aside class="sidebar" id="sidebar" aria-label="Sites and pages">
+    <div class="menu-anchor sb-site">
+      <button id="site-btn" class="sb-site-btn" data-menu="site-menu" title="Switch site"><span id="site-name"></span><svg class="chev"><use href="#i-chevron"/></svg></button>
+      <div class="menu sb-site-menu" id="site-menu" hidden></div>
+    </div>
+    <div class="sb-head"><span>Pages</span><button id="add-page" class="icon ghost" title="Add a page" aria-label="Add a page">+</button></div>
+    <ul id="page-list" class="sb-pages"></ul>
+    <div class="menu sb-page-menu" id="page-menu" hidden>
+      <button type="button" data-page-action="rename">Rename…</button>
+      <button type="button" data-page-action="up">Move up</button>
+      <button type="button" data-page-action="down">Move down</button>
+      <button type="button" data-page-action="delete">Delete…</button>
+    </div>
+  </aside>
+
   <main class="panes">
     <section class="editor-pane">
       <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <button id="sidebar-toggle" title="Show or hide sites and pages" aria-label="Sites and pages" aria-expanded="true"><svg><use href="#i-sidebar"/></svg></button>
+        <span class="sep"></span>
         <button data-cmd="h1" class="txt" title="Site title (H1)">H1</button>
         <button data-cmd="h2" class="txt" title="New section (H2)">H2</button>
         <button data-cmd="h3" class="txt" title="Sub-heading / card (H3)">H3</button>
@@ -88,10 +107,6 @@
     <section class="preview-pane">
       <div class="report">
         <span id="style-summary" class="style-summary"></span>
-        <div class="menu-anchor right">
-          <button id="sections-btn" class="ghost small" data-menu="sections-menu"></button>
-          <div class="menu sections" id="sections-menu" hidden></div>
-        </div>
       </div>
       <div class="preview-body">
         <div class="frame-wrap" id="frame-wrap">
@@ -101,6 +116,7 @@
       </div>
     </section>
   </main>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -109,6 +125,18 @@
       <h2>Writing your site</h2>
       <pre id="guide-text"></pre>
       <button class="primary">Got it</button>
+    </form>
+  </dialog>
+
+  <dialog id="ask" class="ask">
+    <form method="dialog" id="ask-form">
+      <h2 id="ask-title"></h2>
+      <p id="ask-message"></p>
+      <input id="ask-input" name="value" autocomplete="off" spellcheck="false">
+      <div class="ask-row">
+        <button type="button" id="ask-cancel">Cancel</button>
+        <button class="primary" id="ask-ok" value="ok"></button>
+      </div>
     </form>
   </dialog>
 

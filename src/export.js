@@ -2,7 +2,7 @@
 // and the Google Fonts files are downloaded and either written next to
 // index.html in a zip, or embedded as data URLs in a single HTML file.
 
-import { build } from './render.js';
+import { buildSite } from './render.js';
 import { zip } from './zip.js';
 
 const IMG_RE = /!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)/g;
@@ -10,12 +10,15 @@ const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'im
 // Only the subsets an English/European site needs; the full set is dozens of files.
 const FONT_SUBSETS = ['latin', 'latin-ext'];
 
-// format: 'zip' | 'html'. Returns the file to download plus the images that couldn't be fetched.
-export async function exportSite(source, options, format) {
-  const { report } = build(source, options);
+// `site` is { pages: [{ slug, name, source }] } (see buildSite). format: 'zip' | 'html'; the single
+// HTML file holds only the page at `options.current` (the whole site for a one-page site). Returns the file to download plus the images that couldn't be fetched.
+export async function exportSite(site, options, format) {
+  const only = Math.min(options.current || 0, site.pages.length - 1);
+  const sources = (format === 'html' ? [site.pages[only]] : site.pages).map(p => p.source).join('\n\n');
+  const { report } = buildSite(site, options);
   const slug = report.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'site';
 
-  const [images, fonts] = await Promise.all([collectImages(source, options.assets), collectFonts(report.fontsUrl)]);
+  const [images, fonts] = await Promise.all([collectImages(sources, options.assets), collectFonts(report.fontsUrl)]);
   const failed = images.filter(i => !i.blob).map(i => i.src);
   const ok = images.filter(i => i.blob);
 
@@ -27,17 +30,19 @@ export async function exportSite(source, options, format) {
       fontCss = fonts.css;
       for (const f of fonts.files) fontCss = fontCss.split(f.url).join(await dataUrl(f.blob));
     }
-    const { html } = build(source, { ...options, urlMap, fontCss });
-    return { blob: new Blob([html], { type: 'text/html' }), filename: `${slug}.html`, failed, fontsOk: !!fonts };
+    const { html } = buildSite(site, { ...options, current: only, standalone: true, urlMap, fontCss });
+    const page = site.pages[only].slug;
+    return { blob: new Blob([html], { type: 'text/html' }), filename: `${slug}${page ? '-' + page : ''}.html`, failed, fontsOk: !!fonts };
   }
 
+  // index.html and one folder per page at the top level, sharing images/ and fonts/.
   const urlMap = {};
   const files = [];
   const used = new Set();
   for (const img of ok) {
     const name = uniqueName(used, img.name, EXT[img.blob.type] || 'jpg');
     urlMap[img.src] = `images/${name}`;
-    files.push({ name: `${slug}/images/${name}`, data: new Uint8Array(await img.blob.arrayBuffer()) });
+    files.push({ name: `images/${name}`, data: new Uint8Array(await img.blob.arrayBuffer()) });
   }
   let fontHref = '';
   if (fonts) {
@@ -46,13 +51,15 @@ export async function exportSite(source, options, format) {
       const ext = (f.url.match(/\.(woff2?|ttf|otf)(?:$|\?)/) || [, 'woff2'])[1];
       const name = `${f.family.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${i + 1}.${ext}`;
       css = css.split(f.url).join(name);
-      files.push({ name: `${slug}/fonts/${name}`, data: new Uint8Array(await f.blob.arrayBuffer()) });
+      files.push({ name: `fonts/${name}`, data: new Uint8Array(await f.blob.arrayBuffer()) });
     }
-    files.push({ name: `${slug}/fonts/fonts.css`, data: css });
+    files.push({ name: 'fonts/fonts.css', data: css });
     fontHref = 'fonts/fonts.css';
   }
-  const { html } = build(source, { ...options, urlMap, fontHref });
-  files.unshift({ name: `${slug}/index.html`, data: html });
+  const built = buildSite(site, { ...options, urlMap, fontHref });
+  const pages = built.pages.map(p => ({ name: p.slug ? `${p.slug}/index.html` : 'index.html', data: p.html }));
+  files.unshift(...pages);
+  files.push({ name: '.nojekyll', data: '' });
   return { blob: zip(files), filename: `${slug}.zip`, failed, fontsOk: !!fonts };
 }
 

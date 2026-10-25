@@ -481,12 +481,8 @@ const theme = EditorView.theme({
   '.cm-placeholder': { color: 'var(--muted)' },
 });
 
-export function createEditor({ parent, doc, onChange, onSubmit, onFiles, resolveAsset, pickImage }) {
-  const view = new EditorView({
-    parent,
-    state: EditorState.create({
-      doc,
-      extensions: [
+export function createEditor({ parent, doc, onChange, onSubmit, onFiles, resolveAsset, pickImage, getPages }) {
+  const extensions = [
         history(),
         drawSelection(),
         EditorView.lineWrapping,
@@ -494,7 +490,7 @@ export function createEditor({ parent, doc, onChange, onSubmit, onFiles, resolve
         livePreview(resolveAsset),
         tableField,
         EditorView.focusChangeEffect.of((state, focusing) => focusEffect.of(focusing)),
-        mdPopover({ resolveAsset, pickImage }),
+        mdPopover({ resolveAsset, pickImage, getPages }),
         placeholder('# Your site name\n\nA one-line description…\n\n## A section'),
         keymap.of([
           { key: 'Mod-Enter', run: () => { onSubmit(); return true; } },
@@ -523,14 +519,14 @@ export function createEditor({ parent, doc, onChange, onSubmit, onFiles, resolve
           },
         }),
         theme,
-      ],
-    }),
-  });
+  ];
+  const view = new EditorView({ parent, state: EditorState.create({ doc, extensions }) });
 
   return {
     view,
     getValue: () => view.state.doc.toString(),
-    setValue(text) { view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } }); },
+    // Swapping in another document starts a fresh state, so undo can't carry text from one page into another.
+    setValue(text) { view.setState(EditorState.create({ doc: text, extensions })); },
     focus: () => view.focus(),
     wrap: (before, after, ph) => wrap(view, before, after, ph),
     prefixLines: prefix => prefixLines(view, prefix),
